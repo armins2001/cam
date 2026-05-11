@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build APK
 
 on:
   push:
@@ -15,36 +15,38 @@ jobs:
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: gradle
+        distribution: temurin
+        java-version: 17
 
-    # نصب ابزارهای SDK اندروید
+    # اکشن رسمی Google برای نصب SDK
     - name: Install Android SDK
-      run: |
-        sudo apt-get update -y
-        sudo apt-get install -y wget unzip
-        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-        unzip -q commandlinetools-linux-11076708_latest.zip -d android-sdk
-        yes | android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=android-sdk licenses
-        yes | android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=android-sdk "build-tools;34.0.0" "platforms;android-34" "platform-tools"
-        echo "sdk.dir=$GITHUB_WORKSPACE/android-sdk" > local.properties
+      uses: android-actions/setup-android@v3
 
-    - name: Setup Gradle
+    # نصب build-tools و platform مورد نیاز Gradle
+    - name: Install required build tools
+      run: |
+        sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+    # نصب Gradle
+    - name: Setup Gradle 8.7
       uses: gradle/actions/setup-gradle@v3
       with:
         gradle-version: 8.7
 
-    - name: Build with Gradle (debug mode on)
+    # اجرای بیلد همراه با لاگ کامل
+    - name: Build APK
       run: |
-        if [ -f "build.gradle" ]; then
-          gradle assembleDebug --stacktrace --info --no-daemon
+        if [ -f "gradlew" ]; then
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace --info --no-daemon
         else
-          cd camera_project && gradle assembleDebug --stacktrace --info --no-daemon
+          cd camera_project
+          chmod +x gradlew || true
+          ./gradlew assembleDebug --stacktrace --info --no-daemon
         fi
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: camera-app-debug
+        name: camera_app
         path: "**/build/outputs/apk/debug/*.apk"

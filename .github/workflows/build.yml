@@ -12,26 +12,35 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: set up JDK 17
+    - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
         cache: gradle
 
-    # این مرحله جادویی است؛ خودش Gradle نسخه 8.7 را نصب می‌کند
+    # نصب ابزارهای SDK اندروید
+    - name: Install Android SDK
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y wget unzip
+        wget https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+        unzip -q commandlinetools-linux-11076708_latest.zip -d android-sdk
+        yes | android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=android-sdk licenses
+        yes | android-sdk/cmdline-tools/bin/sdkmanager --sdk_root=android-sdk "build-tools;34.0.0" "platforms;android-34" "platform-tools"
+        echo "sdk.dir=$GITHUB_WORKSPACE/android-sdk" > local.properties
+
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       with:
         gradle-version: 8.7
 
-    - name: Build with Gradle 8.7
+    - name: Build with Gradle (debug mode on)
       run: |
-        # پیدا کردن مسیر پروژه و اجرای دستور ساخت
         if [ -f "build.gradle" ]; then
-          gradle assembleDebug
+          gradle assembleDebug --stacktrace --info --no-daemon
         else
-          cd camera_project && gradle assembleDebug
+          cd camera_project && gradle assembleDebug --stacktrace --info --no-daemon
         fi
 
     - name: Upload APK
